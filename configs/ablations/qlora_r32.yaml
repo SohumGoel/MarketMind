@@ -1,0 +1,6 @@
+run_name: "qlora_4bit_r32"
+lora_r: 32
+lora_alpha: 64
+load_in_4bit: true
+load_in_8bit: false
+use_peft: true

@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.venv/
+venv/
+env/
+.env
+*.env
+
+# Model checkpoints and outputs (can be 10-80 GB)
+outputs/
+!outputs/.gitkeep
+
+# HuggingFace model weights
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.gguf
+
+# HuggingFace cache
+.cache/
+hf_cache/
+
+# WandB
+wandb/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Data files (large)
+*.parquet
+*.arrow
+*.jsonl
+data/raw/
+data/processed/
+
+# Secrets
+secrets.yaml
+api_keys.json
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Distribution
+dist/
+build/
