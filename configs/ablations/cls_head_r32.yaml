@@ -1,8 +1,7 @@
-run_name: "cls_head_r32"
-lora_r: 32
-lora_alpha: 64
-load_in_4bit: true
+run_name: "cls_head_r16"
+lora_r: 16
+lora_alpha: 32
+load_in_4bit: false   # todo reset to true
 load_in_8bit: false
 use_peft: true
-use_cls_head: true
-cls_lambda: 0.3
+cls_lambda: 1     # todo reset to true

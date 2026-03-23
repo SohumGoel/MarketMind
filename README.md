@@ -64,9 +64,11 @@ pip install -r requirements.txt
 
 # 4. WandB login (for experiment tracking)
 wandb login
+# key - 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
 
 # 5. HuggingFace login (needed to pull Qwen3 weights)
-huggingface-cli login
+hf auth login
+# key - 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
 ```
 
 **Verify GPU:**

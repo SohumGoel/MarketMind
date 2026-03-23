@@ -1,31 +1,21 @@
-# ============================================================
-# MarketMind — Base Training Config
-# All ablation yamls inherit from this file via OmegaConf merge.
-# Edit here to change defaults across all runs.
-# ============================================================
+run_name: "base"
 
-# --- Run identity ---
-run_name: "base"  # overridden in each ablation yaml
-
-# --- Model ---
 model_name_or_path: "Qwen/Qwen3-8B"
 trust_remote_code: true
-torch_dtype: "bfloat16"
 
-# --- Dataset ---
-dataset_name: "FinGPT/fingpt-forecaster-dow30-202305-202312"
-max_seq_length: 2048
-test_split_size: 0.1
+dataset_name: "FinGPT/fingpt-forecaster-dow30-202305-202405"
+max_seq_length: 4096
 seed: 42
 
 # --- Output ---
 output_dir: "outputs/runs/${run_name}"
+final_dir: "/data/user_data/yashagar/marketmind/${run_name}"
 logging_dir: "outputs/logs/${run_name}"
 
 # --- LoRA / PEFT ---
 use_peft: true
 lora_r: 32
-lora_alpha: 64        # convention: 2x rank
+lora_alpha: 64
 lora_dropout: 0.05
 lora_target_modules:
   - "q_proj"
@@ -45,11 +35,11 @@ bnb_4bit_use_double_quant: true
 
 # --- Training hyperparameters ---
 num_train_epochs: 3
-per_device_train_batch_size: 2
-gradient_accumulation_steps: 8      # effective batch size = 16
+per_device_train_batch_size: 4
+gradient_accumulation_steps: 4
 learning_rate: 2.0e-4
 lr_scheduler_type: "cosine"
-warmup_ratio: 0.05
+warmup_steps: 20        # replace warmup_ratio
 weight_decay: 0.01
 max_grad_norm: 1.0
 optim: "paged_adamw_32bit"
@@ -60,14 +50,17 @@ fp16: false
 gradient_checkpointing: true
 dataloader_num_workers: 4
 
-# --- Logging / Checkpointing ---
+logging_strategy: "steps"
 logging_steps: 10
+eval_strategy: "steps"
 eval_steps: 50
-save_steps: 100
+save_strategy: "steps"
+save_steps: 50
+
+metric_for_best_model: "eval_cls_accuracy"
+greater_is_better: true
 save_total_limit: 2
 load_best_model_at_end: true
 report_to: "wandb"
 
-# --- Classification head ablation (off by default) ---
-use_cls_head: false
-cls_lambda: 0.3
+cls_lambda: 0.1   # then sweep this

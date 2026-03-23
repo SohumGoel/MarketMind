@@ -46,8 +46,9 @@ def main():
     if args.smoke_test:
         cfg.num_train_epochs = 1
         cfg.max_steps = 5
-        cfg.logging_steps = 1
+        cfg.eval_strategy = "steps"
         cfg.eval_steps = 5
+        cfg.save_strategy = "steps"
         cfg.save_steps = 5
         cfg.run_name = cfg.run_name + "_smoke"
         print("[smoke_test] Overriding to 5 steps.")
