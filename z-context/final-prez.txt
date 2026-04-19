@@ -1,0 +1,21 @@
+Submit a 10-14 minute video presentation on your project’s findings. You may record this using Zoom, Quicktime, or any other software. For teams of two, it is ok if only one person speaks, but all team members should contribute to preparing the presentation.
+
+For applied track projects, you should pitch your application, describe how it works (emphasizing how you incorporated language models), and mention what next steps might be if you were to continue building out the application.
+
+For all presentations we will be grading you on clarity (that is, how well can we understand what your project did based the video), cleanness of the slides and figures (if any), oral communiction skills, and how thougtfully the topics in the previous paragraph are addressed.. You should not assume the TA/instructor grading your video is familiar with your project.
+
+Due Thursday, April 30 at 11:59 PM (syllabus late policy applies):
+Write a final report. We encourage you to reuse text from your proposal. Your report should have the following sections
+
+Abstract (<5 sentences): Briefly describe the main idea for your project.
+Introduction (<1 page): This can have more detail than the abstract. how users interact with your application (if applicable) and how your project engages with course material.
+Literature review (0.5-1 page): Write out an academic-stye literature review. By this, we mean complete sentences and paragraphs with in-line citatinos. Your literature should include both academic and non-acadmic related efforts.
+
+Method (1-2 pages): Describe in detail your method, datasets, and evaluation scheme.
+Experimental results (1-2 pages): For application track, you should describe the experiments that led you to the final version of your applications. We expect to see supporting tables and figures where applicable.
+End-of-Semester goals and next steps (0.5-1 pages): Did you meet your end-of-semester goals. If you were to keep working on your project, what would you like to do next?
+Collaboration (0.25 page): Only fill this out if you are working in a team of two. How did you divide up the labor for the project?
+Use of AI (0-1 pages): Discuss how you used AI for completing your project proposal. As a reminder, you may use AI tools to assist you in preparing your proposal, but the final words you write down should be your own.
+
+In class activities for last week:
+Applied track: demo session on Tuesday, April 21. All applied track students will be expected to present a live demo to your classmates and instructors.

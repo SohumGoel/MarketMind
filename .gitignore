@@ -34,9 +34,11 @@ wandb/
 # Data files (large)
 *.parquet
 *.arrow
-*.jsonl
 data/raw/
 data/processed/
+
+# Run logs
+logs/*.jsonl
 
 # Secrets
 secrets.yaml

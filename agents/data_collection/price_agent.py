@@ -1,44 +1,59 @@
 """
-Stock price and volume data fetching agent.
-
-TODO (Sohum): Implement using yfinance (free) or MarketStack / Alpha Vantage
-for OHLCV data.
-
-Reference:
-    yfinance: https://github.com/ranaroussi/yfinance
-    MarketStack: https://marketstack.com/documentation
-    Alpha Vantage TIME_SERIES: https://www.alphavantage.co/documentation/#time-series-data
+Stock price and volume data fetching agent using yfinance (no API key needed).
 """
 
+import yfinance as yf
 from agents.base_agent import BaseAgent
 
 
 class PriceAgent(BaseAgent):
     """
-    Fetches OHLCV (open, high, low, close, volume) price data for a ticker.
+    Fetches OHLCV price data and basic financials for a ticker via yfinance.
 
-    Output format:
-        {
-            "ticker": "AAPL",
-            "start_date": "2024-01-01",
-            "end_date": "2024-01-07",
-            "source": "yfinance",
-            "data": [
-                {
-                    "date": "2024-01-02",
-                    "open": 185.0,
-                    "high": 187.5,
-                    "low": 184.0,
-                    "close": 186.0,
-                    "volume": 50000000,
-                },
-                ...
-            ]
-        }
+    Output data includes daily OHLCV rows plus a summary of key financial
+    indicators (PE ratio, market cap, 52-week range) to match FinGPT prompt fields.
     """
 
     def fetch(self, ticker: str, start_date: str, end_date: str) -> dict:
-        raise NotImplementedError(
-            "PriceAgent not yet implemented. "
-            "TODO (Sohum): Implement using yfinance or MarketStack API."
-        )
+        stock = yf.Ticker(ticker)
+
+        hist = stock.history(start=start_date, end=end_date)
+        if hist.empty:
+            raise ValueError(f"No price data found for {ticker} between {start_date} and {end_date}")
+
+        price_rows = [
+            {
+                "date": str(date.date()),
+                "open": round(row["Open"], 2),
+                "high": round(row["High"], 2),
+                "low": round(row["Low"], 2),
+                "close": round(row["Close"], 2),
+                "volume": int(row["Volume"]),
+            }
+            for date, row in hist.iterrows()
+        ]
+
+        info = stock.info
+        financials = {
+            "market_cap": info.get("marketCap"),
+            "pe_ratio": info.get("trailingPE"),
+            "eps": info.get("trailingEps"),
+            "week_52_high": info.get("fiftyTwoWeekHigh"),
+            "week_52_low": info.get("fiftyTwoWeekLow"),
+            "avg_volume": info.get("averageVolume"),
+            "sector": info.get("sector"),
+            "industry": info.get("industry"),
+            "company_name": info.get("longName", ticker),
+            "description": info.get("longBusinessSummary", ""),
+        }
+
+        return {
+            "ticker": ticker,
+            "start_date": start_date,
+            "end_date": end_date,
+            "source": "yfinance",
+            "data": {
+                "prices": price_rows,
+                "financials": financials,
+            },
+        }
