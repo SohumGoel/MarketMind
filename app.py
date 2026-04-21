@@ -37,6 +37,7 @@ st.set_page_config(page_title="MarketMind", page_icon="📈", layout="wide")
 
 from ui.styles import DARK_THEME_CSS
 from ui.components import (
+    DIRECTION_LABEL,
     parse_reasoning,
     render_company_header,
     render_price_chart,
@@ -177,8 +178,10 @@ if not st.session_state.get("running") or "pending_query" not in st.session_stat
 
 _clean = st.session_state["pending_query"]
 
-with st.spinner("Resolving ticker..."):
-    ticker = ticker_from_name(_clean)
+_resolve_ph = st.empty()
+_resolve_ph.write("⏳ Resolving company...")
+ticker = ticker_from_name(_clean)
+_resolve_ph.write(f"✅ Resolved — {_clean.title()} → **{ticker}**")
 
 # ── Company header row ─────────────────────────────────────────────────────────
 try:
@@ -259,10 +262,20 @@ else:
     with st.status("Running pipeline...", expanded=True) as status:
 
         def _step(placeholder, msg):
-            placeholder.write(msg)
-            _log.info(msg.replace("⏳ ", "").replace("✅ ", "").replace("⚠️ ", "WARN: "))
+            if msg.startswith("  ↳"):
+                text = msg.strip()[1:].strip()
+                placeholder.markdown(
+                    f'<div style="margin-left:24px; border-left: 2px solid #22c55e33; padding: 4px 10px;">'
+                    f'<span style="color:#22c55e; margin-right:6px;">↳</span>'
+                    f'<span style="color:#94a3b8;">{text}</span></div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                placeholder.write(msg)
+            _log.info(msg.replace("⏳ ", "").replace("✅ ", "").replace("⚠️ ", "WARN: ").strip())
 
-        s1 = st.empty(); _step(s1, "⏳ Fetching price data & financials...")
+        # ── Price ──────────────────────────────────────────────────────────────
+        s1a = st.empty(); _step(s1a, "⏳ Fetching current price & financial health...")
         try:
             price_result = PriceAgent().fetch(ticker, str(start_date), str(end_date))
             company_name = price_result["data"]["financials"].get("company_name", ticker)
@@ -272,57 +285,81 @@ else:
                 last_close = prices[-1]["close"]
                 first_open = prices[0]["open"]
                 pct = 100 * (last_close - first_open) / first_open if first_open else 0
-                _step(s1, f"✅ Price data fetched — ${last_close:.2f} ({pct:+.1f}% on the week)")
+                _step(s1a, f"✅ Price ready — ${last_close:.2f} ({pct:+.1f}% on the week)")
             else:
-                _step(s1, "✅ Price data fetched")
+                _step(s1a, "✅ Price ready")
+            fins = price_result["data"]["financials"]
+            _sec  = fins.get("sector") or _sector or "N/A"
+            _p_e  = fins.get("pe_ratio") or fins.get("trailingPE") or _pe
+            s1b = st.empty(); _step(s1b, f"  ↳ Market metrics — {_sec} · P/E {f'{_p_e:.1f}' if _p_e else 'N/A'}")
+            if prices:
+                s1c = st.empty(); _step(s1c, f"  ↳ Week: Open ${prices[0]['open']:.2f} → Close ${prices[-1]['close']:.2f} · {len(prices)} trading day{'s' if len(prices) != 1 else ''}")
         except Exception as e:
             _log.error(f"Price fetch failed: {e}")
-            _step(s1, f"⚠️ Price data unavailable: {e}")
+            _step(s1a, f"⚠️ Price data unavailable: {e}")
             price_result = {"data": {"prices": [], "financials": {}}}
             company_name, description = ticker, ""
 
-        s2 = st.empty(); _step(s2, "⏳ Fetching news headlines...")
+        # ── News ───────────────────────────────────────────────────────────────
+        s2a = st.empty(); _step(s2a, "⏳ Scanning recent news coverage...")
         try:
             news_result = NewsAgent(api_key=av_key or None).fetch(ticker, str(start_date), str(end_date))
             articles    = news_result["data"]
             news_items  = articles
-            _step(s2, f"✅ News fetched — {len(articles)} headline{'s' if len(articles) != 1 else ''}")
+            _bullish = sum(1 for a in articles if "Bullish" in a.get("sentiment_label", ""))
+            _bearish = sum(1 for a in articles if "Bearish" in a.get("sentiment_label", ""))
+            _step(s2a, f"✅ {len(articles)} headlines retrieved")
+            s2b = st.empty(); _step(s2b, f"  ↳ Sentiment scored — {_bullish} bullish · {_bearish} bearish")
+            if articles:
+                _dates = [a.get("published_at", "") for a in articles if a.get("published_at")]
+                if _dates:
+                    def _fmt_av_date(d):
+                        d = d[:8]
+                        return f"{d[:4]}-{d[4:6]}-{d[6:8]}"
+                    _d0 = _fmt_av_date(_dates[-1])
+                    _d1 = _fmt_av_date(_dates[0])
+                    s2c = st.empty(); _step(s2c, f"  ↳ Coverage: {_d0} – {_d1}")
         except Exception as e:
             _log.warning(f"News fetch failed (all keys exhausted): {e}")
-            _step(s2, "⚠️ News unavailable — proceeding without headlines")
+            _step(s2a, "⚠️ News unavailable — proceeding without headlines")
             articles, news_items = [], []
 
-        s3 = st.empty(); _step(s3, "⏳ Loading SEC filing...")
+        # ── SEC filing ─────────────────────────────────────────────────────────
+        s3a = st.empty(); _step(s3a, "⏳ Checking for latest company filing...")
         try:
             sec_start  = (datetime.strptime(str(start_date), "%Y-%m-%d") - _td(days=90)).strftime("%Y-%m-%d")
             sec_result = SECAgent().fetch(ticker, sec_start, str(end_date))
             filings    = sec_result["data"]
-            source     = sec_result.get("source", "")
             if filings:
-                form      = filings[0].get("form_type", "filing")
-                src_label = "cached" if source == "sec_cache" else "live"
-                _step(s3, f"✅ SEC filing loaded — {ticker} {form} ({src_label})")
+                form     = filings[0].get("form_type", "filing")
+                filed_at = filings[0].get("filed_at", "")
+                filed_short = filed_at[:7] if filed_at else ""
+                _step(s3a, f"✅ {form} ({filed_short}) located")
+                s3b = st.empty(); _step(s3b, "  ↳ MD&A + Risk Factors extracted")
             else:
-                _step(s3, "⚠️ No SEC filings found")
+                _step(s3a, "⚠️ No SEC filings found")
         except Exception as e:
             _log.error(f"SEC fetch failed: {e}")
-            _step(s3, f"⚠️ SEC filing unavailable: {e}")
+            _step(s3a, f"⚠️ SEC filing unavailable: {e}")
             filings = []; sec_result = {}
 
-        s4 = st.empty(); _step(s4, "⏳ Running RAG extraction...")
+        # ── RAG ────────────────────────────────────────────────────────────────
+        s4a = st.empty(); _step(s4a, "⏳ Finding most relevant passages for this analysis...")
         try:
             rag = RAGPipeline()
             for filing in filings:
                 if filing.get("full_text"):
                     rag.index_document(filing["full_text"], doc_id=f"{filing['form_type']}_{filing.get('filed_at','?')}")
             rag_passages = rag.retrieve(query=_ticker_rag_query(company_name), top_k=3)
-            _step(s4, f"✅ RAG complete — {len(rag_passages)} passage{'s' if len(rag_passages) != 1 else ''} extracted")
+            _step(s4a, f"✅ {len(rag_passages)} passages retrieved from {len(rag.chunks)}-passage index")
+            s4b = st.empty(); _step(s4b, f"  ↳ Passages cover risks, revenue drivers & forward outlook")
         except Exception as e:
             _log.error(f"RAG failed: {e}")
-            _step(s4, f"⚠️ RAG failed: {e}")
+            _step(s4a, f"⚠️ RAG failed: {e}")
             rag_passages = []
 
-        s5 = st.empty(); _step(s5, "⏳ Assembling prompt...")
+        # ── Prompt + inference ─────────────────────────────────────────────────
+        s5 = st.empty(); _step(s5, "⏳ Synthesizing price, news, and filing data...")
         user_content = f"""[Company Introduction]
 {company_name} ({ticker})
 {description}
@@ -348,9 +385,14 @@ Based on the above information, provide your analysis and prediction for {ticker
             "prompt": prompt, "raw": {"price": price_result, "news": {"data": articles}, "sec": sec_result if filings else {}},
             "_rag_chunks": rag_passages, "_news_count": len(articles),
         }
-        _step(s5, "✅ Prompt assembled")
+        _sources = ", ".join(filter(None, [
+            "price" if price_result["data"]["prices"] else "",
+            f"{len(articles)} news articles" if articles else "",
+            f"{len(rag_passages)} SEC passages" if rag_passages else "",
+        ]))
+        _step(s5, f"✅ Prompt ready — {_sources}")
 
-        s6 = st.empty(); _step(s6, "⏳ Generating analysis...")
+        s6 = st.empty(); _step(s6, "⏳ Generating analyst recommendation...")
         try:
             if model_mode == "CMU AI Gateway":
                 agent = EvaluatorAgent(backend="gateway", api_key=gateway_key, gateway_model=gateway_model)
@@ -359,7 +401,7 @@ Based on the above information, provide your analysis and prediction for {ticker
             result    = agent.predict(prompt_dict)
             direction = result["direction"]
             reasoning = result["reasoning"]
-            _step(s6, "✅ Analysis complete")
+            _step(s6, f"✅ Analysis complete — recommendation: {DIRECTION_LABEL.get(direction, 'UNKNOWN')}")
         except Exception as e:
             st.session_state["running"] = False
             st.error(f"Inference error: {e}")

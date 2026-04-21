@@ -20,18 +20,6 @@ _GATEWAY_MODEL_FALLBACKS = [
     "gemini-2.5-pro",
 ]
 
-_SYSTEM_PROMPT = (
-    "You are a seasoned stock market analyst. Your task is to list the positive "
-    "developments and potential concerns for companies based on relevant news and "
-    "basic financial data from the past weeks, then make a prediction about the "
-    "companies' stock price movement for the upcoming week.\n\n"
-    "Your answer format must be exactly:\n\n"
-    "[Positive Developments]:\n1. ...\n\n"
-    "[Potential Concerns]:\n1. ...\n\n"
-    "[Prediction & Analysis]:\n"
-    "Conclude with whether the stock will move **up**, **down**, or remain **neutral**."
-)
-
 
 class EvaluatorAgent:
     """
@@ -112,11 +100,8 @@ class EvaluatorAgent:
         }
 
     def _predict_gateway(self, prompt_dict: dict, max_tokens: int) -> str:
-        user_content = _extract_user_content(prompt_dict["prompt"])
-        messages = [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user",   "content": user_content},
-        ]
+        chatml_prompt = prompt_dict["prompt"]
+        messages = [{"role": "user", "content": chatml_prompt}]
         models_to_try = [self.gateway_model] + _GATEWAY_MODEL_FALLBACKS
         last_exc = None
         for model in models_to_try:
@@ -151,14 +136,3 @@ class EvaluatorAgent:
 
         new_tokens = output_ids[0][inputs["input_ids"].shape[1]:]
         return self.tokenizer.decode(new_tokens, skip_special_tokens=True)
-
-
-def _extract_user_content(chatml_prompt: str) -> str:
-    """Pull out the user turn content from a ChatML-formatted string."""
-    import re
-    match = re.search(
-        r"<\|im_start\|>user\n(.*?)<\|im_end\|>",
-        chatml_prompt,
-        re.DOTALL,
-    )
-    return match.group(1).strip() if match else chatml_prompt

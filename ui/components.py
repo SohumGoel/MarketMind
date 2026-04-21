@@ -160,9 +160,45 @@ def render_news_headlines(news_items):
 
 
 def render_full_reasoning(sections, reasoning):
-    if sections["positives"] or sections["concerns"] or sections["analysis"]:
+    # If markers weren't found, fall back to simple rendering
+    if not (sections["positives"] or sections["concerns"] or sections["analysis"]):
         st.markdown('<div class="mm-card-label" style="margin-top:20px;">FULL ANALYST REASONING</div>', unsafe_allow_html=True)
-        st.markdown(f"""
-<div class="mm-card">
-    <div style="font-size:0.88rem; color:#cbd5e1; line-height:1.7;">{reasoning.replace(chr(10), '<br>')}</div>
-</div>""", unsafe_allow_html=True)
+        st.markdown(f'<div class="mm-card"><div style="color:#cbd5e1; line-height:1.8;">{reasoning.replace(chr(10), "<br>")}</div></div>', unsafe_allow_html=True)
+        return
+
+    _HEADERS = {
+        "[Positive Developments]": ("POSITIVE DEVELOPMENTS", "#22c55e"),
+        "[Potential Concerns]":    ("POTENTIAL CONCERNS",    "#f59e0b"),
+        "[Prediction & Analysis]": ("PREDICTION & ANALYSIS", "#60a5fa"),
+    }
+
+    lines = reasoning.splitlines()
+    html_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped in ("", ":"):
+            html_lines.append("<br>")
+            continue
+        matched = False
+        for marker, (label, color) in _HEADERS.items():
+            if marker in stripped:
+                html_lines.append(
+                    f'<div style="margin-top:18px; margin-bottom:6px; '
+                    f'font-size:0.95rem; letter-spacing:0.10em; font-weight:700; '
+                    f'color:{color}; text-transform:uppercase; '
+                    f'border-left:3px solid {color}; padding-left:8px;">{label}</div>'
+                )
+                matched = True
+                break
+        if not matched:
+            formatted = re.sub(r'\*\*(up|buy)\*\*',           r'<strong style="color:#22c55e;">\1</strong>',  stripped, flags=re.IGNORECASE)
+            formatted = re.sub(r'\*\*(down|sell)\*\*',        r'<strong style="color:#ef4444;">\1</strong>',  formatted, flags=re.IGNORECASE)
+            formatted = re.sub(r'\*\*(neutral|hold)\*\*',     r'<strong style="color:#f59e0b;">\1</strong>',  formatted, flags=re.IGNORECASE)
+            formatted = re.sub(r'Prediction:\s*(up|buy)',      r'Prediction: <strong style="color:#22c55e;">\1</strong>', formatted, flags=re.IGNORECASE)
+            formatted = re.sub(r'Prediction:\s*(down|sell)',   r'Prediction: <strong style="color:#ef4444;">\1</strong>', formatted, flags=re.IGNORECASE)
+            formatted = re.sub(r'Prediction:\s*(neutral|hold)',r'Prediction: <strong style="color:#f59e0b;">\1</strong>', formatted, flags=re.IGNORECASE)
+            formatted = re.sub(r'\*\*(.+?)\*\*',              r'<strong style="color:#e2e8f0;">\1</strong>',  formatted)
+            html_lines.append(f'<div style="color:#cbd5e1; line-height:1.75; margin:2px 0;">{formatted}</div>')
+
+    st.markdown('<div class="mm-card-label" style="margin-top:20px;">FULL ANALYST REASONING</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="mm-card">{"".join(html_lines)}</div>', unsafe_allow_html=True)
